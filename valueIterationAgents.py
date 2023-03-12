@@ -85,7 +85,7 @@ class ValueIterationAgent(ValueEstimationAgent):
           value function stored in self.values.
         """
         "*** YOUR CODE HERE ***"
-        nextStates_and_probs = self.mdp.getTransitionStatesAndProbs(state,action);
+        nextStates_and_probs = self.mdp.getTransitionStatesAndProbs(state,action)
         qValue = 0
         for nextState, prob in nextStates_and_probs:
             reward = self.mdp.getReward(state, action, nextState)
@@ -180,4 +180,33 @@ class PrioritizedSweepingValueIterationAgent(AsynchronousValueIterationAgent):
 
     def runValueIteration(self):
         "*** YOUR CODE HERE ***"
+        predecessors = {}
+        pq = util.PriorityQueue()
+        states = self.mdp.getStates()
+        for state in states:
+            predecessors[state] = set()
+        for state in states:
+            if self.mdp.isTerminal(state):
+                continue
+            actions = self.mdp.getPossibleActions(state)
+            for action in actions:
+                nextStates_and_probs = self.mdp.getTransitionStatesAndProbs(state, action)
+                for nextState, prob in nextStates_and_probs:
+                    predecessors[nextState].add(state)
+            policy = self.getPolicy(state)
+            qValue = self.getQValue(state, policy)
+            diff = abs(self.getValue(state) - qValue)
+            pq.push(state, -diff)
 
+        for i in range(self.iterations):
+            if pq.isEmpty():
+                return
+            state = pq.pop()
+            policy = self.getPolicy(state)
+            self.values[state] = self.getQValue(state, policy)
+            for p in predecessors[state]:
+                currentValue = self.values[p]
+                highest_qValue = self.getQValue(p, self.getPolicy(p))
+                diff = abs(currentValue - highest_qValue)
+                if diff > self.theta:
+                    pq.update(p, -diff)
